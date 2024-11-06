@@ -46,6 +46,9 @@ sap.ui.define([
                 this.calculateFit(); // Calculate fit whenever truck size changes
                 // this.displayProductShapes(); // Display product shapes whenever truck size changes
                 this._createContainer(dimensions);
+                this.selectedContainer = {
+                    dimensions
+                };
               
             }
         },
@@ -125,7 +128,7 @@ sap.ui.define([
             const remainingVolume = totalTruckVolume - totalOccupiedVolume;
             this.getView().getModel().setProperty("/remainingQuantity", remainingVolume);
 
-            this.byId("totalProductsText").setText(`Total Truck Quantity: ${totalFitCount}`);
+            this.byId("totalProductsText").setText(`Total Quantity: ${totalFitCount}`);
             this.byId("remainingSpaceText").setText(`Remaining Area in Truck: ${remainingVolume.toFixed(2)} m³`);
 
             // Check if total fitting exceeds truck dimensions
@@ -361,6 +364,7 @@ sap.ui.define([
         },
 
         onAddProduct1: function (oEvent) {
+            debugger
             const sProduct = oEvent.getSource().getCustomData()[0].getValue();
             const position = this._getNextAvailablePosition();
 
@@ -412,6 +416,7 @@ sap.ui.define([
         },
 
         _getNextAvailablePosition: function () {
+            debugger
             const container = this.selectedContainer.dimensions;
             const rows = Math.floor(container.width / this.productSize.width);
             const layers = Math.floor(container.height / this.productSize.height);

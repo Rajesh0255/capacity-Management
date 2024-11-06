@@ -14,9 +14,16 @@
                     <core:Item key="32" text="32 feet" />
                 </items>
             </Select>
-
+            <HBox justifyContent="End" class="sapuitinymarginright">
+ <Button text="Upload"></Button>
+ </HBox>
             <Table id="productTable" items="{/products}">
+           
                 <columns>
+                
+                 <Column>
+                        <Text text="Product Type" />
+                    </Column>
                     <Column>
                         <Text text="Product Width (m)" />
                     </Column>
@@ -36,6 +43,7 @@
                 <items>
                     <ColumnListItem>
                         <cells>
+                        <Input value=" " liveChange="" />
                             <Input value="{width}" liveChange="onProductInputChange" />
                             <Input value="{height}" liveChange="onProductInputChange" />
                             <Input value="{length}" liveChange="onProductInputChange" />
@@ -48,8 +56,18 @@
 
             <HBox >
             <VBox  class ="Vbox25">
-
-            <Button text="Add Product" press="onAddProduct" />
+            <HBox>
+            <Button text="Add Product" press=".onAddProduct">
+                <customData>
+                    <core:CustomData key="product" value="Product A" xmlns:core="sap.ui.core"/>
+                </customData>
+            </Button>
+            <Button text="Simulator" press=".onAddProduct1">
+                <customData>
+                    <core:CustomData key="product" value="Product A" xmlns:core="sap.ui.core"/>
+                </customData>
+            </Button>
+            </HBox>
             <ToolbarSeparator ></ToolbarSeparator>
             <Text id="totalProductsText" text="Total Quantity: " />
             <ToolbarSeparator ></ToolbarSeparator>
