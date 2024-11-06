@@ -1,0 +1,69 @@
+<mvc:View
+    xmlns:mvc="sap.ui.core.mvc"
+    xmlns="sap.m"
+    xmlns:core="sap.ui.core"
+    controllerName="com.app.testing.controller.Home">
+
+    <Page title="Truck Product Selector">
+        <content>
+            <Select id="truckSize" change="onTruckSizeChange">
+                <items>
+                    <core:Item key="14" text="14 feet" />
+                    <core:Item key="17" text="17 feet" />
+                    <core:Item key="22" text="22 feet" />
+                    <core:Item key="32" text="32 feet" />
+                </items>
+            </Select>
+
+            <Table id="productTable" items="{/products}">
+                <columns>
+                    <Column>
+                        <Text text="Product Width (m)" />
+                    </Column>
+                    <Column>
+                        <Text text="Product Height (m)" />
+                    </Column>
+                    <Column>
+                        <Text text="Product Length (m)" />
+                    </Column>
+                    <Column>
+                        <Text text="User Quantity" />
+                    </Column>
+                    <Column>
+                        <Text text="Quantity Fit" />
+                    </Column>
+                </columns>
+                <items>
+                    <ColumnListItem>
+                        <cells>
+                            <Input value="{width}" liveChange="onProductInputChange" />
+                            <Input value="{height}" liveChange="onProductInputChange" />
+                            <Input value="{length}" liveChange="onProductInputChange" />
+                            <Input value="{userQuantity}" liveChange="onUserQuantityChange" type="Number" />
+                            <Input value="{quantity}" type="Number" editable="false" />
+                        </cells>
+                    </ColumnListItem>
+                </items>
+            </Table>
+
+            <HBox >
+            <VBox >
+
+            <Button text="Add Product" press="onAddProduct" />
+            <ToolbarSeparator ></ToolbarSeparator>
+            <Text id="totalProductsText" text="Total Quantity: " />
+            <ToolbarSeparator ></ToolbarSeparator>
+            <Text id="remainingSpaceText" text="Remaining Area in Truck: " />
+            <ToolbarSeparator ></ToolbarSeparator>
+            <Text id="errorMessage" text="" visible="false" />
+            </VBox>
+            <VBox width="60%" class="CanvasVbox">
+
+            <core:HTML id="threeContainer" content="&lt;div id=&quot;threejsCanvas&quot; style=&quot;width: 70%; height: 400px;&quot;&gt;&lt;/div&gt;" 
+                    xmlns:core="sap.ui.core" />
+             </VBox>
+            </HBox>
+        </content>
+    </Page>
+
+</mvc:View>

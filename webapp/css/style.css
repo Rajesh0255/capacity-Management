@@ -1,0 +1,12 @@
+/* Enter your custom styles here */
+.productVisualization {
+    margin: 5px;
+    padding: 5px;
+    border: 1px solid #007ACC;
+    background-color: #e0f7fa;
+}
+
+.CanvasVbox{
+
+    margin-right: 20%;
+}
