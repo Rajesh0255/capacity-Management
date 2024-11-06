@@ -10,10 +10,10 @@ sap.ui.define([
     return Controller.extend("com.app.testing.controller.Home", {
         onInit: function () {
             const truckDimensions = {
-                "14": { width: 2.1350, height: 5.1850, length: 3.6000 },
-                "17": { width: 2.2900, height: 5.4550, length: 2.2620 },
-                "22": { width: 2.2858, height: 6.7052, length: 2.1335 },
-                "32": { width: 2.4382, height: 9.7534, length: 2.4382 }
+                "14": { width: 2.1300, height: 2.1300, length: 4.2700 },
+                "17": { width: 2.2900, height: 2.5900, length: 5.1800 },
+                "22": { width: 2.4300, height: 2.5900, length: 6.7100 },
+                "32": { width: 2.4400, height: 2.5900, length: 9.7500 }
             };
 
             const model = new JSONModel({
@@ -29,13 +29,14 @@ sap.ui.define([
                 return;
             }
             this.selectedContainer = {
-                dimensions: { length: 10, height: 4, width: 5 }
+                dimensions: { length: 4.2700 , height: 2.1300, width: 2.1300 }
             };
             this.productSize = { length: 1, width: 1, height: 1 };
             this.products = [];  // Store product positions
         },
 
         onTruckSizeChange: function () {
+            debugger
             const selectedKey = this.byId("truckSize").getSelectedKey();
             const truckDimensions = this.getView().getModel().getProperty("/truckDimensions");
             const dimensions = truckDimensions[selectedKey];
@@ -44,6 +45,8 @@ sap.ui.define([
                 this.getView().getModel().setProperty("/selectedTruck", dimensions);
                 this.calculateFit(); // Calculate fit whenever truck size changes
                 // this.displayProductShapes(); // Display product shapes whenever truck size changes
+                this._createContainer(dimensions);
+              
             }
         },
 
@@ -220,14 +223,17 @@ sap.ui.define([
         },
 
         _init3DScene: function () {
+            debugger;
             this.scene = new THREE.Scene();
+            
+            // Set initial camera position to make the scene appear larger
             this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            this.camera.position.set(10, 10, 20);
-
+            this.camera.position.set(10, 10, 10); // Set Z closer for larger initial view
+        
             this.renderer = new THREE.WebGLRenderer({ alpha: true });
-            this.renderer.setSize(window.innerWidth, 400);
+            this.renderer.setSize(1400, 600);
             this.renderer.setClearColor(0xffffff, 0);
-
+        
             var threejsCanvas = document.getElementById("threejsCanvas");
             if (threejsCanvas) {
                 threejsCanvas.appendChild(this.renderer.domElement);
@@ -235,42 +241,92 @@ sap.ui.define([
                 console.error("threejsCanvas not found");
                 return;
             }
-
+        
+            // Enable orbit controls for zooming and movement
             this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-            this.controls.enableDamping = true;
-            this.controls.dampingFactor = 0.05;
-            this.controls.minDistance = 10;
-            this.controls.maxDistance = 100;
-
+            this.controls.enableDamping = true;       // Enable smooth controls
+            this.controls.dampingFactor = 0.05;      // Smoothness of the movement
+            this.controls.enableZoom = true;         // Allow zooming in and out
+            this.controls.minDistance = 5;           // Decrease minDistance to allow zooming in more
+            this.controls.maxDistance = 500;         // Increase maxDistance to allow zooming out more
+            this.controls.zoomSpeed = 1.2;           // Zoom speed
+        
+            // Create a light source in the scene
             const light = new THREE.DirectionalLight(0xffffff, 1);
             light.position.set(10, 10, 10).normalize();
             this.scene.add(light);
-
+        
+            // Call to create your container (if needed)
             this._createContainer(this.selectedContainer.dimensions);
-         
+        
+            // Create a group to store products
             this.productLayer = new THREE.Group();
             this.scene.add(this.productLayer);
+        
+            // Start the animation loop
             this._animate();
         },
+        
+        
+        // Animate function for the rendering loop
+        _animate: function () {
+            var self = this;
+            function animate() {
+                requestAnimationFrame(animate);
+                self.controls.update();  // Update controls for damping
+                self.renderer.render(self.scene, self.camera);
+            }
+            animate();
+        },
+        
 
         _createContainer: function (dimensions) {
+            // Remove the previous container if it exists
+            if (this.currentContainer) {
+                this.scene.remove(this.currentContainer);
+                this.currentContainer.geometry.dispose();
+                this.currentContainer.material.dispose();
+            }
+        
             const containerMaterial = new THREE.MeshStandardMaterial({
                 color: 0x64748b,
                 transparent: true,
                 opacity: 0.2
             });
+            
             const truckContainer = this._createBox(dimensions.length, dimensions.height, dimensions.width, containerMaterial);
+        
+            // Check if truckContainer is valid
+            if (!truckContainer) {
+                console.error("Error: _createBox did not return a valid THREE.Object3D instance.");
+                return;
+            }
+            
             truckContainer.position.set(0, dimensions.height / 2, 0);
             this.scene.add(truckContainer);
-            this._createBorderLines(dimensions);
+            this.currentContainer = truckContainer;
+        
+            // Remove and recreate border lines for the new container
+            if (this.currentBorderLines) {
+                this.scene.remove(this.currentBorderLines);
+            }
+            this.currentBorderLines = this._createBorderLines(dimensions);
+            
+            // Check if currentBorderLines is valid
+            if (!this.currentBorderLines) {
+                console.error("Error: _createBorderLines did not return a valid THREE.Object3D instance.");
+                return;
+            }
+            
+            this.scene.add(this.currentBorderLines);
         },
-
+        
         _createBorderLines: function (dimensions) {
-            const borderMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
-            const borderGeometry = new THREE.EdgesGeometry(this._createBoxGeometry(dimensions.length, dimensions.height, dimensions.width));
-            const borderLines = new THREE.LineSegments(borderGeometry, borderMaterial);
+            const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(dimensions.length, dimensions.height, dimensions.width));
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+            const borderLines = new THREE.LineSegments(edges, lineMaterial);
             borderLines.position.set(0, dimensions.height / 2, 0);
-            this.scene.add(borderLines);
+            return borderLines;  // Ensure this is returned
         },
 
         _createBoxGeometry: function (width, height, depth) {

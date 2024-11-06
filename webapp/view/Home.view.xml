@@ -47,7 +47,7 @@
             </Table>
 
             <HBox >
-            <VBox >
+            <VBox  class ="Vbox25">
 
             <Button text="Add Product" press="onAddProduct" />
             <ToolbarSeparator ></ToolbarSeparator>
