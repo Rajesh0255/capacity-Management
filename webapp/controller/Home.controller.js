@@ -231,7 +231,7 @@ sap.ui.define([
             this.camera.position.set(10, 10, 10); // Set Z closer for larger initial view
         
             this.renderer = new THREE.WebGLRenderer({ alpha: true });
-            this.renderer.setSize(1400, 600);
+            this.renderer.setSize(1400, 780);
             this.renderer.setClearColor(0xffffff, 0);
         
             var threejsCanvas = document.getElementById("threejsCanvas");
