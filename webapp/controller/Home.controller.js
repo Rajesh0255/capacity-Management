@@ -11,9 +11,9 @@ sap.ui.define([
         onInit: function () {
             const truckDimensions = {
                 "14": { width: 2.1300, height: 2.1300, length: 4.2700 },
-                "17": { width: 2.2900, height: 2.5900, length: 5.1800 },
-                "22": { width: 2.4300, height: 2.5900, length: 6.7100 },
-                "32": { width: 2.4400, height: 2.5900, length: 9.7500 }
+                "17": { width: 2.2900, height: 2.1300, length: 5.1800 },
+                "22": { width: 2.4300, height: 2.1300, length: 6.7100 },
+                "32": { width: 2.4400, height: 2.1300, length: 9.7500 }
             };
 
             const model = new JSONModel({
@@ -284,7 +284,7 @@ sap.ui.define([
         
 
         _createContainer: function (dimensions) {
-            // Remove the previous container if it exists
+            debugger
             if (this.currentContainer) {
                 this.scene.remove(this.currentContainer);
                 this.currentContainer.geometry.dispose();
@@ -299,29 +299,24 @@ sap.ui.define([
             
             const truckContainer = this._createBox(dimensions.length, dimensions.height, dimensions.width, containerMaterial);
         
-            // Check if truckContainer is valid
             if (!truckContainer) {
                 console.error("Error: _createBox did not return a valid THREE.Object3D instance.");
                 return;
             }
             
-            truckContainer.position.set(0, dimensions.height / 2, 0);
+            truckContainer.position.set(0, dimensions.height / 700, 0);
             this.scene.add(truckContainer);
             this.currentContainer = truckContainer;
         
-            // Remove and recreate border lines for the new container
-            if (this.currentBorderLines) {
-                this.scene.remove(this.currentBorderLines);
+            if (this.currentBorder) {
+                this.scene.remove(this.currentBorder);
             }
-            this.currentBorderLines = this._createBorderLines(dimensions);
-            
-            // Check if currentBorderLines is valid
-            if (!this.currentBorderLines) {
-                console.error("Error: _createBorderLines did not return a valid THREE.Object3D instance.");
-                return;
-            }
-            
-            this.scene.add(this.currentBorderLines);
+        
+            const borderGeometry = new THREE.EdgesGeometry(truckContainer.geometry);
+            const borderMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+            const border = new THREE.LineSegments(borderGeometry, borderMaterial);
+            truckContainer.add(border);
+            this.currentBorder = border;
         },
         
         _createBorderLines: function (dimensions) {
@@ -333,10 +328,12 @@ sap.ui.define([
         },
 
         _createBoxGeometry: function (width, height, depth) {
+            debugger
             return new THREE.BoxGeometry(width, height, depth);
         },
 
         _createBox: function (width, height, depth, material) {
+            debugger
             const geometry = this._createBoxGeometry(width, height, depth);
             return new THREE.Mesh(geometry, material);
         },
@@ -357,7 +354,7 @@ sap.ui.define([
         _animate: function () {
             const animate = () => {
                 requestAnimationFrame(animate);
-                this.controls.update();
+                this.controls.update(); // Update controls for smooth movement
                 this.renderer.render(this.scene, this.camera);
             };
             animate();
@@ -366,6 +363,25 @@ sap.ui.define([
         onAddProduct1: function (oEvent) {
             debugger
             const sProduct = oEvent.getSource().getCustomData()[0].getValue();
+            switch (sProduct) {
+
+                case "Product B":
+                   
+                    this.productSize = { length: 0.5, width: 0.5, height: 0.5 };
+                    
+                   
+                    break;
+                case "Product C":
+                  
+                    this.productSize = { length: 0.5, width: 0.3, height: 1 };
+                    
+                   
+                    break;
+                default:
+                    this.productSize = { length: 1, width: 1, height: 1 };
+
+                  
+            }
             const position = this._getNextAvailablePosition();
 
             if (!position) {
@@ -390,9 +406,15 @@ sap.ui.define([
             switch (sProduct) {
                 case "Product B":
                     color = 0x0000ff; // Blue
+                    this.productSize = { length: 0.5, width: 0.5, height: 0.5 };
+                    
+                   
                     break;
                 case "Product C":
                     color = 0xff00ff; // Pink
+                    this.productSize = { length: 0.5, width: 0.3, height: 1 };
+                    
+                   
                     break;
                 default:
                     color = 0x00ff00; // Green
@@ -416,20 +438,69 @@ sap.ui.define([
         },
 
         _getNextAvailablePosition: function () {
-            debugger
             const container = this.selectedContainer.dimensions;
             const rows = Math.floor(container.width / this.productSize.width);
             const layers = Math.floor(container.height / this.productSize.height);
             const columns = Math.floor(container.length / this.productSize.length);
-
-            if (this.products.length >= rows * columns * layers) return null;  // Check if container is full
-
-            const productCount = this.products.length;
-            const x = (productCount % columns) * this.productSize.length - container.length / 2 + this.productSize.length / 2;
-            const z = Math.floor(productCount / columns) % rows * this.productSize.width - container.width / 2 + this.productSize.width / 2;
-            const y = Math.floor(productCount / (columns * rows)) * this.productSize.height;
-            
-            return { x, y, z };
+        
+            // Initialize the occupied positions if not already done
+            if (!this.occupiedPositions) {
+                this.occupiedPositions = [];
+            }
+        
+            // Iterate through potential positions within container bounds
+            for (let layer = 0; layer < layers; layer++) {
+                for (let row = 0; row < rows; row++) {
+                    for (let column = 0; column < columns; column++) {
+        
+                        // Calculate the coordinates for the current position, aligning products with the container's ground
+                        const x = column * this.productSize.length - container.length / 2 + this.productSize.length / 2;
+                        const z = row * this.productSize.width - container.width / 2 + this.productSize.width / 2;
+                        const y = layer * this.productSize.height - container.height / 2 + this.productSize.height / 2; // Align with container ground
+        
+                        // Check if the calculated position is already occupied
+                        if (this._isPositionOccupied(x, y, z)) {
+                            continue;  // Skip to the next position if occupied
+                        }
+        
+                        // If position is available, add it to occupied positions and return it
+                        this.occupiedPositions.push({ x, y, z, ...this.productSize });
+                        return { x, y, z };
+                    }
+                }
+            }
+        
+            // If no available position is found, return null
+            return null;
+        },
+        
+        // Helper function to check if a position is already occupied
+        _isPositionOccupied: function (x, y, z) {
+            for (let pos of this.occupiedPositions) {
+                if (
+                    Math.abs(pos.x - x) < (pos.length + this.productSize.length) / 2 &&
+                    Math.abs(pos.y - y) < (pos.height + this.productSize.height) / 2 &&
+                    Math.abs(pos.z - z) < (pos.width + this.productSize.width) / 2
+                ) {
+                    return true; // Position is occupied
+                }
+            }
+            return false; // Position is available
+        },
+        
+        
+        // Helper function to check if a position is already occupied
+        _isPositionOccupied: function (x, y, z) {
+            for (let pos of this.occupiedPositions) {
+                if (
+                    Math.abs(pos.x - x) < (pos.length + this.productSize.length) / 2 &&
+                    Math.abs(pos.y - y) < (pos.height + this.productSize.height) / 2 &&
+                    Math.abs(pos.z - z) < (pos.width + this.productSize.width) / 2
+                ) {
+                    return true; // Position is occupied
+                }
+            }
+            return false; // Position is available
         },
 
         _enableDrag: function (meshGroup) {
