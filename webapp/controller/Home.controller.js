@@ -15,7 +15,7 @@ sap.ui.define([
                 "22": { width: 2.4300, height: 2.1300, length: 6.7100 },
                 "32": { width: 2.4400, height: 2.1300, length: 9.7500 }
             };
-
+        
             const model = new JSONModel({
                 products: [],
                 truckDimensions: truckDimensions,
@@ -24,33 +24,54 @@ sap.ui.define([
                 remainingQuantity: 0
             });
             this.getView().setModel(model);
+        
             if (typeof THREE === "undefined") {
                 console.error("THREE.js is not loaded. Please check the script source.");
                 return;
             }
+        
             this.selectedContainer = {
-                dimensions: { length: 4.2700 , height: 2.1300, width: 2.1300 }
+                dimensions: { length: 4.2700, height: 2.1300, width: 2.1300 }
             };
             this.productSize = { length: 1, width: 1, height: 1 };
             this.products = [];  // Store product positions
+            this.occupiedPositions = []; // Initialize occupied positions
         },
 
         onTruckSizeChange: function () {
-            debugger
             const selectedKey = this.byId("truckSize").getSelectedKey();
             const truckDimensions = this.getView().getModel().getProperty("/truckDimensions");
             const dimensions = truckDimensions[selectedKey];
-
+            
             if (dimensions) {
                 this.getView().getModel().setProperty("/selectedTruck", dimensions);
-                this.calculateFit(); // Calculate fit whenever truck size changes
-                // this.displayProductShapes(); // Display product shapes whenever truck size changes
                 this._createContainer(dimensions);
-                this.selectedContainer = {
-                    dimensions
-                };
-              
+                this.selectedContainer = { dimensions };
+        
+                // Clear current product positions
+                this.occupiedPositions = [];
+                
+                // Adjust positions of existing products within the new container dimensions
+                this._adjustProductPositions();
             }
+        },
+        
+        _adjustProductPositions: function () {
+            this.products.forEach((productMesh, index) => {
+                const position = this._getNextAvailablePosition();
+        
+                if (position) {
+                    productMesh.position.set(position.x, position.y, position.z);
+                    this.occupiedPositions.push({
+                        x: position.x,
+                        y: position.y,
+                        z: position.z,
+                        ...this.productSize
+                    });
+                } else {
+                    console.warn("Not enough space for all products in the new container size.");
+                }
+            });
         },
 
         onAddProduct: function () {
@@ -188,38 +209,7 @@ sap.ui.define([
             return message || "All products fit within the truck capacity.";
         },
 
-        // displayProductShapes: function () {
-        //     const products = this.getView().getModel().getProperty("/products");
-        //     const vBox = this.byId("productDisplayVBox");
-        //     vBox.removeAllItems(); // Clear previous shapes
-
-        //     const selectedTruck = this.getView().getModel().getProperty("/selectedTruck");
-        //     const truckWidth = selectedTruck.width;
-        //     const truckLength = selectedTruck.length;
-
-        //     products.forEach(product => {
-        //         const width = parseFloat(product.width);
-        //         const length = parseFloat(product.length);
-        //         const height = parseFloat(product.height);
-
-        //         if (product.name && width && length && height) {
-        //             // Create a simple representation of the product
-        //             const productBox = new Panel({
-        //                 content: [
-        //                     new Text({ text: `${product.name}: ${width}m x ${length}m x ${height}m` })
-        //                 ],
-        //                 width: `${(width / truckWidth) * 100}%`,
-        //                 height: `${(length / truckLength) * 100}px`,
-        //                 backgroundColor: "lightblue",
-        //                 borderStyle: "Solid",
-        //                 borderColor: "black"
-        //             });
-
-        //             vBox.addItem(productBox);
-        //         }
-        //     });
-        // }
-
+    //   **************************************************************************************************************************************************
 
         onAfterRendering: function() {
             this._init3DScene();
@@ -407,33 +397,29 @@ sap.ui.define([
                 case "Product B":
                     color = 0x0000ff; // Blue
                     this.productSize = { length: 0.5, width: 0.5, height: 0.5 };
-                    
-                   
                     break;
                 case "Product C":
                     color = 0xff00ff; // Pink
                     this.productSize = { length: 0.5, width: 0.3, height: 1 };
-                    
-                   
                     break;
                 default:
                     color = 0x00ff00; // Green
+                    this.productSize = { length: 1, width: 1, height: 1 };
             }
-
-            // Create the main product box
+        
+            // Create the product box
             const material = new THREE.MeshBasicMaterial({ color: color });
             const productBox = this._createBox(this.productSize.length, this.productSize.height, this.productSize.width, material);
-
-            // Create the border for the product
-            const borderMaterial = new THREE.LineBasicMaterial({ color: 0x000000 }); // Black border
+        
+            // Create and add the border for the product
+            const borderMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
             const borderGeometry = new THREE.EdgesGeometry(this._createBoxGeometry(this.productSize.length, this.productSize.height, this.productSize.width));
             const borderLines = new THREE.LineSegments(borderGeometry, borderMaterial);
-
-            // Add both product and border to a group so they move together
+        
             const productGroup = new THREE.Group();
             productGroup.add(productBox);
             productGroup.add(borderLines);
-
+        
             return productGroup;
         },
 
@@ -443,64 +429,37 @@ sap.ui.define([
             const layers = Math.floor(container.height / this.productSize.height);
             const columns = Math.floor(container.length / this.productSize.length);
         
-            // Initialize the occupied positions if not already done
-            if (!this.occupiedPositions) {
-                this.occupiedPositions = [];
-            }
-        
             // Iterate through potential positions within container bounds
             for (let layer = 0; layer < layers; layer++) {
                 for (let row = 0; row < rows; row++) {
                     for (let column = 0; column < columns; column++) {
         
-                        // Calculate the coordinates for the current position, aligning products with the container's ground
+                        // Calculate the coordinates for the current position
                         const x = column * this.productSize.length - container.length / 2 + this.productSize.length / 2;
                         const z = row * this.productSize.width - container.width / 2 + this.productSize.width / 2;
-                        const y = layer * this.productSize.height - container.height / 2 + this.productSize.height / 2; // Align with container ground
+                        const y = layer * this.productSize.height - container.height / 2 + this.productSize.height / 2;
         
-                        // Check if the calculated position is already occupied
+                        // Check if the position is occupied
                         if (this._isPositionOccupied(x, y, z)) {
-                            continue;  // Skip to the next position if occupied
+                            continue;  // Skip if occupied
                         }
         
-                        // If position is available, add it to occupied positions and return it
+                        // Position is available
                         this.occupiedPositions.push({ x, y, z, ...this.productSize });
                         return { x, y, z };
                     }
                 }
             }
-        
-            // If no available position is found, return null
-            return null;
+            
+            return null; // Return null if no available position is found
         },
         
-        // Helper function to check if a position is already occupied
         _isPositionOccupied: function (x, y, z) {
-            for (let pos of this.occupiedPositions) {
-                if (
-                    Math.abs(pos.x - x) < (pos.length + this.productSize.length) / 2 &&
-                    Math.abs(pos.y - y) < (pos.height + this.productSize.height) / 2 &&
-                    Math.abs(pos.z - z) < (pos.width + this.productSize.width) / 2
-                ) {
-                    return true; // Position is occupied
-                }
-            }
-            return false; // Position is available
-        },
-        
-        
-        // Helper function to check if a position is already occupied
-        _isPositionOccupied: function (x, y, z) {
-            for (let pos of this.occupiedPositions) {
-                if (
-                    Math.abs(pos.x - x) < (pos.length + this.productSize.length) / 2 &&
-                    Math.abs(pos.y - y) < (pos.height + this.productSize.height) / 2 &&
-                    Math.abs(pos.z - z) < (pos.width + this.productSize.width) / 2
-                ) {
-                    return true; // Position is occupied
-                }
-            }
-            return false; // Position is available
+            return this.occupiedPositions.some(pos => 
+                Math.abs(pos.x - x) < (pos.length + this.productSize.length) / 2 &&
+                Math.abs(pos.y - y) < (pos.height + this.productSize.height) / 2 &&
+                Math.abs(pos.z - z) < (pos.width + this.productSize.width) / 2
+            );
         },
 
         _enableDrag: function (meshGroup) {
